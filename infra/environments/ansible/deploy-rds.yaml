@@ -1,0 +1,87 @@
+---
+- name: Provision AWS Resources for PostgreSQL RDS
+  hosts: localhost
+  gather_facts: no
+  vars:
+    # Update with valid subnet IDs
+    subnet_ids:
+      - "subnet-XXXXXXXX"
+      - "subnet-XXXXXXXX"
+    region: "us-east-1"  # Change to desired region
+    db_instance_identifier: "postgresql-instance"
+    db_name: "myappdb"  # Change to your database name if needed
+    db_username: "dbadmin"  # Change to your desired DB admin username
+    db_password_length: 16
+    instance_class: "db.t3.micro"
+    allocated_storage: 20  # Change to your desired storage
+    engine_version: "11.22"  # Change to the PostgreSQL version you need
+    environment: "dev"  # Change to your environment (e.g., production)
+    backup_retention_period: 7
+    backup_window: "03:00-04:00"
+    maintenance_window: "Mon:04:00-Mon:05:00"
+    multi_az: false
+    publicly_accessible: false  # Change to true if external access is required
+
+  tasks:
+    - name: Create security group for PostgreSQL
+      amazon.aws.ec2_security_group:
+        name: "postgres_rds"
+        description: "Security group for PostgreSQL RDS instance"
+        region: "{{ region }}"
+        inbound_rules:
+          - proto: "tcp"
+            ports: "5432"
+            cidr_ips:
+              - "YOUR_PUBLIC_IP/32"  # Replace with your public IP
+        outbound_rules:
+          - proto: "-1"
+            ports: "0"
+            cidr_ips:
+              - "0.0.0.0/0"
+        tags:
+          Name: "postgres_rds"
+      register: sg_result
+
+    - name: Create RDS DB subnet group
+      amazon.aws.rds_db_subnet_group:
+        name: "postgres_subnet_group"
+        subnet_ids: "{{ subnet_ids }}"
+        region: "{{ region }}"
+        tags:
+          Name: "PostgreSQL DB subnet group"
+
+    - name: Generate random password for DB admin
+      amazon.aws.random_password:
+        length: "{{ db_password_length }}"
+        special: true
+      register: db_password
+
+    - name: Create PostgreSQL RDS instance
+      amazon.aws.rds_db_instance:
+        db_instance_identifier: "{{ db_instance_identifier }}"
+        engine: "postgres"
+        engine_version: "{{ engine_version }}"
+        db_name: "{{ db_name }}"
+        master_username: "{{ db_username }}"
+        master_user_password: "{{ db_password.password }}"
+        db_instance_class: "{{ instance_class }}"
+        allocated_storage: "{{ allocated_storage }}"
+        storage_type: "gp2"
+        db_subnet_group_name: "postgres_subnet_group"
+        vpc_security_group_ids:
+          - "{{ sg_result.group_id }}"
+        backup_retention_period: "{{ backup_retention_period }}"
+        backup_window: "{{ backup_window }}"
+        maintenance_window: "{{ maintenance_window }}"
+        multi_az: "{{ multi_az }}"
+        publicly_accessible: "{{ publicly_accessible }}"
+        skip_final_snapshot: true
+        tags:
+          Environment: "{{ environment }}"
+
+    - name: Output database credentials and endpoint
+      debug:
+        msg:
+          - "DB Username: {{ db_username }}"
+          - "DB Password: {{ db_password.password }}"
+          - "DB Endpoint: {{ db_instance_endpoint }}"
