@@ -5,8 +5,8 @@
   vars:
     # Update with valid subnet IDs
     subnet_ids:
-      - "subnet-XXXXXXXX"
-      - "subnet-XXXXXXXX"
+      - "subnet-07cfef6cb98ca416e"
+      - "subnet-09cb6f99bcd6982bb"
     region: "us-east-1"  # Change to desired region
     db_instance_identifier: "postgresql-instance"
     db_name: "myappdb"  # Change to your database name if needed

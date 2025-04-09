@@ -1,3 +1,5 @@
+
+
 output "db_password" {
     value       = random_password.master_password.result
     sensitive   = true
@@ -13,3 +15,4 @@ output "db_username" {
     value       = aws_db_instance.postgres.username
     description = "The username of the database administrator"
 }
+
